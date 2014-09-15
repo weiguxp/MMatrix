@@ -18,12 +18,15 @@ public class GameController : MonoBehaviour {
 	public GameObject WhiteSquare;
 	public GameObject BlackSquare;
 	private GameObject SquareObject;
+	private MatrixBlockScript matrixBlockScript;
 
 	//Settings for the game
 	private int numCols;
 	private int numRows;
 	private int numBlacks;
 	private int[] blacksquares;
+	private int[,] memoryMatrix;
+	private GameObject[,] objectMatrix;
 
 
 	// Use this for initialization
@@ -35,9 +38,7 @@ public class GameController : MonoBehaviour {
 
 		gameState = GameState.initiate;
 
-		InitiateGame (4, 4, 4);
-		Debug.Log (5 % 3);
-
+		InitiateGame (5, 5, 5);
 	}
 	
 	// Update is called once per frame
@@ -45,44 +46,37 @@ public class GameController : MonoBehaviour {
 	
 	}
 
-	void InitiateGame(int x_cols, int y_rows, int num_blacks){
+	public void InitiateGame(int x_cols, int y_rows, int num_blacks){
+
+
 		numCols = x_cols;
 		numRows = y_rows;
 		numBlacks = num_blacks;
 		int numSquares = numCols * numRows;
-		int[] blackSquareList = new int[num_blacks];
-		int[,] memoryMatrix  = new int[numCols,numRows];
+		memoryMatrix  = new int[numCols,numRows];
+		objectMatrix = new GameObject[numCols,numRows];
 
-
-//		Consider using as hashset here
-		for (int j = 0; j <num_blacks; j++) {
-			int isNewNum = 0;
-			int i = -1;
-//		Prevent number duplication
-			while(isNewNum == 0){
-				i = Random.Range (0, numSquares-1);
-				isNewNum =1;
-				foreach (int k in blackSquareList){
-					if (k == i){ isNewNum=0;}
-				}
-			}
-
-			blackSquareList [j] = i;
+//		Puts the numbers into as HashSet. 
+		HashSet<int> blackSquareList = new HashSet<int>();
+		while(blackSquareList.Count < 4){
+			blackSquareList.Add(Random.Range(0, numSquares-1));
 		}
 
 		foreach (int i in blackSquareList){
 			int x = i / numRows;
 			int y = i % numRows;
 			memoryMatrix[x,y] = 1;
-//			Debug.Log ("i = " + i);
-//			Debug.Log ( x + " , " + y);
 		}
 
 		for (int i = 0; i <numCols; i++){
 			for (int j = 0; j<numRows; j++){
 				if (memoryMatrix[i,j] == 1){
 					SquareObject = (GameObject)Instantiate(BlackSquare, new Vector3(i,j,0), Quaternion.identity);
-//					SquareObject.tag = "BlackSquare";
+					matrixBlockScript = SquareObject.GetComponent<MatrixBlockScript>();
+					matrixBlockScript.x_coord = i;
+					matrixBlockScript.y_coord = j;
+
+					objectMatrix[i,j] = SquareObject;
 				}
 			}
 		}
@@ -91,11 +85,24 @@ public class GameController : MonoBehaviour {
 			for (int j = 0; j<numRows; j++){
 				if (memoryMatrix[i,j] == 0){
 					SquareObject = (GameObject)Instantiate(WhiteSquare, new Vector3(i,j,0), Quaternion.identity);
+					objectMatrix[i,j] = SquareObject;
+					matrixBlockScript = SquareObject.GetComponent<MatrixBlockScript>();
+					matrixBlockScript.x_coord = i;
+					matrixBlockScript.y_coord = j;
 //					SquareObject.tag = "WhiteSquare";
 				}
 			}
 		}
 
-		
 	}
+
+	public void ClearButton(){
+		ClearCells ();
+	}
+
+	public void ClearCells(){
+		foreach(GameObject deleteMe in objectMatrix){
+			Destroy(deleteMe);
+		}
+	}	
 }
