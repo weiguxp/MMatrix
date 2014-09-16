@@ -14,6 +14,7 @@ public class ReInitializeButton : MonoBehaviour {
 	}
 
 	void OnMouseDown() {
-		GameController.CS.ClearButton();
+
+//		GameController.CS.ClearButton();
 	}
 }
