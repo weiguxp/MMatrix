@@ -11,6 +11,7 @@ public class GameController : MonoBehaviour {
 		playerdeath,
 		playerwin,
 		idle,
+		gameover,
 	}
 
 	public static GameController CS;
@@ -22,6 +23,7 @@ public class GameController : MonoBehaviour {
 	private GameObject SquareObject;
 
 	//Settings for the game
+	private int numTrials = 3;
 	private int numCols;
 	private int numRows;
 	private int numBlacks;
@@ -29,9 +31,10 @@ public class GameController : MonoBehaviour {
 	private int[] blacksquares;
 	private int[,] memoryMatrix;
 	private GameObject[,] objectMatrix;
-	private GameObject[] blackObjects;
+	private List<GameObject> blackObjects;
 	private int gameLevel=1;
 	private int gameScore = 0;
+
 
 
 	// Use this for initialization
@@ -41,26 +44,25 @@ public class GameController : MonoBehaviour {
 		DontDestroyOnLoad(this);
 
 		gameState = GameState.initiate;
-	
+
 	}
 	
 	// Update is called once per frame
 	void Update () {
 	
 		if(gameState == GameState.initiate){
-			InitiateGame();
 			gameState = GameState.showcards;
+			InitiateGame();
+
 		}
 
 		if(gameState == GameState.showcards){
 			gameState = GameState.idle;
-			StartCoroutine(HideCells());
-		}
+			StartCoroutine(HideCells());}
 
 		if (gameState == GameState.playerdeath) {
 			StartCoroutine(PlayerLose());
-			gameState = GameState.idle;
-		}
+			gameState = GameState.idle;}
 
 		if (gameState == GameState.playerwin) {
 			StartCoroutine(PlayerWin ());
@@ -72,8 +74,9 @@ public class GameController : MonoBehaviour {
 
 	public void InitiateGame(){
 		//Starts the game by making a 2D integer matrix and assigns "black squares and white squares"
+		blackObjects = new List<GameObject>();
 		numCorrect = 0;
-		Debug.Log ("CurrentLevel:" + gameLevel+ " CurrentScore:" + gameScore);
+		Debug.Log ("CurrentLevel:" + gameLevel+ " CurrentScore:" + gameScore+ " NumTrials:" + numTrials);
 		LevelInitiate ();
 		int numCells = numCols * numRows;
 		memoryMatrix  = new int[numCols,numRows];
@@ -89,9 +92,9 @@ public class GameController : MonoBehaviour {
 			int x = i / numRows;
 			int y = i % numRows;
 			memoryMatrix[x,y] = 1;
-		InstantiateCells ();
 		}
 
+		InstantiateCells ();
 	}
 
 	public void CellClick (int x, int y){
@@ -102,13 +105,13 @@ public class GameController : MonoBehaviour {
 				numCorrect++;
 				gameScore += 10;
 				CheckWin ();
-				objectMatrix [x, y].GetComponent<SpriteRenderer> ().color = Color.blue;
+				objectMatrix [x, y].GetComponent<Animator> ().Play ("BlueFaster");
 
 			}
 
 			if (memoryMatrix [x, y] == 0) {
 				memoryMatrix [x, y] = 2;
-				objectMatrix [x, y].GetComponent<SpriteRenderer> ().color = Color.red;
+				objectMatrix [x, y].GetComponent<Animator> ().Play ("RedFaster");
 				gameState = GameState.playerdeath;
 			}
 		}
@@ -124,9 +127,7 @@ public class GameController : MonoBehaviour {
 	public void ClearButton(){
 		StartCoroutine (HideCells ());
 	}
-
-
-
+	
 	public void DeleteCells(){
 		foreach(GameObject deleteMe in objectMatrix){
 			Destroy (deleteMe);
@@ -142,10 +143,10 @@ public class GameController : MonoBehaviour {
 
 	public IEnumerator HideCells(){
 		yield return new WaitForSeconds (2);
-		foreach(GameObject colorMe in objectMatrix){
+		foreach(GameObject colorMe in blackObjects){
 			colorMe.GetComponent<Animator>().Play("White");
 		}
-		
+		yield return new WaitForSeconds (0.8f);
 		gameState = GameState.choosecards;
 	}	
 
@@ -161,16 +162,25 @@ public class GameController : MonoBehaviour {
 		RevealCells ();
 		yield return new WaitForSeconds (1);
 
-		if (gameLevel > 1) {
-			if (numBlacks-numCorrect >1){
-			gameLevel --;
+		if(numTrials > 0){
+			numTrials --;
+			if (gameLevel > 1) {
+				if (numBlacks-numCorrect >1){
+				gameLevel --;
+				}
 			}
+			DeleteCells ();
+			gameState = GameState.initiate;
 		}
-		DeleteCells ();
-		gameState = GameState.initiate;
+		else{
+			gameState = GameState.idle;
+		}
 	}
 
 	public void InstantiateCells(){
+
+
+
 //	Instantiates the squares and assigns their x and y cordinate values relative to the memory matrix. 
 		for (int i = 0; i <numCols; i++){
 			for (int j = 0; j<numRows; j++){
@@ -184,35 +194,14 @@ public class GameController : MonoBehaviour {
 
 				if (memoryMatrix[i,j] == 1){
 					matrixBlockScript.isBlackSquare = true;
-//					matrixBlockScript.GetComponent<SpriteRenderer>().color = Color.blue;
-//					SquareObject.GetComponent<Animator>().Play("Blue");
+					blackObjects.Add(SquareObject);
+					SquareObject.GetComponent<Animator>().Play("Blue");
 				}
 
 				if (memoryMatrix[i,j] == 0){
 					matrixBlockScript.isBlackSquare = false;
-//					matrixBlockScript.GetComponent<SpriteRenderer>().color = Color.white;
 				}
 
-			}
-		}
-
-		SelectBlack ();
-		foreach (GameObject tempa in blackObjects) {
-//			tempa.GetComponent<Animator>().Play("Blue");
-		}
-	}
-
-	public void SelectBlack(){
-		blackObjects = new GameObject[numBlacks] ;
-		int elo= 0;
-
-		for (int i = 0; i <numCols; i++) {
-			for (int j = 0; j<numRows; j++) {
-				if (memoryMatrix[i,j] == 1){
-					GameObject temp = objectMatrix[i,j];
-					blackObjects[elo]=(temp);
-					elo++;
-                 }
 			}
 		}
 	}
@@ -223,7 +212,7 @@ public class GameController : MonoBehaviour {
 		for (int i = 0; i <numCols; i++) {
 				for (int j = 0; j<numRows; j++) {
 						if (memoryMatrix [i, j] == 1) {
-								objectMatrix[i,j].GetComponent<SpriteRenderer> ().color = Color.blue;
+						objectMatrix[i,j].GetComponent<Animator>().Play("BlueFaster");
 						}
 				}
 		}
