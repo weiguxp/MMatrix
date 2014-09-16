@@ -36,6 +36,11 @@ public class GameController : MonoBehaviour {
 	private int gameScore = 0;
 
 
+	//HUD items linked here
+	public GameObject HUDAttempts;
+	public GameObject HUDTiles;
+	public GameObject HUDScore;
+
 
 	// Use this for initialization
 	void Start () {
@@ -77,7 +82,7 @@ public class GameController : MonoBehaviour {
 		blackObjects = new List<GameObject>();
 		numCorrect = 0;
 		Debug.Log ("CurrentLevel:" + gameLevel+ " CurrentScore:" + gameScore+ " NumTrials:" + numTrials);
-		LevelInitiate ();
+		LoadLevelDetails ();
 		int numCells = numCols * numRows;
 		memoryMatrix  = new int[numCols,numRows];
 		objectMatrix = new GameObject[numCols,numRows];
@@ -95,6 +100,7 @@ public class GameController : MonoBehaviour {
 		}
 
 		InstantiateCells ();
+		UpdateHUD ();
 	}
 
 	public void CellClick (int x, int y){
@@ -103,7 +109,7 @@ public class GameController : MonoBehaviour {
 			if (memoryMatrix [x, y] == 1) {
 				memoryMatrix [x, y] = 3;
 				numCorrect++;
-				gameScore += 10;
+				AddGameScore(10);
 				CheckWin ();
 				objectMatrix [x, y].GetComponent<Animator> ().Play ("BlueFaster");
 
@@ -117,9 +123,9 @@ public class GameController : MonoBehaviour {
 		}
 	}
 
-	public void LevelInitiate(){
+	public void LoadLevelDetails(){
 		numBlacks = gameLevel + 2;
-		numCols = gameLevel / 2 + 3;
+		numCols = gameLevel / 4 + 3;
 		numRows = (gameLevel - 1) / 2 + 3;
 	}
 
@@ -185,7 +191,7 @@ public class GameController : MonoBehaviour {
 		for (int i = 0; i <numCols; i++){
 			for (int j = 0; j<numRows; j++){
 
-				SquareObject = (GameObject)Instantiate(WhiteSquare, new Vector3((float)i-(float)numCols/2,(float)j-(float)numCols/2,0), Quaternion.identity);
+				SquareObject = (GameObject)Instantiate(WhiteSquare, new Vector3((float)i-(float)numCols/2,(float)j-(float)numRows/2,0), Quaternion.identity);
 				matrixBlockScript = SquareObject.GetComponent<MatrixBlockScript>();
 				matrixBlockScript.x_coord = i;
 				matrixBlockScript.y_coord = j;
@@ -206,6 +212,15 @@ public class GameController : MonoBehaviour {
 		}
 	}
 
+	private void AddGameScore(int addScore){
+		gameScore += addScore;
+		UpdateHUD();
+	}
+	public void UpdateHUD(){
+		HUDAttempts.GetComponent<UILabel>().text = numTrials.ToString();
+		HUDScore.GetComponent<UILabel>().text = gameScore.ToString();
+		HUDTiles.GetComponent<UILabel>().text = (numBlacks - numCorrect).ToString();
+	}
 
 	public void RevealCells(){
 
