@@ -37,17 +37,26 @@ public class GameController : MonoBehaviour {
 		DontDestroyOnLoad(this);
 
 		gameState = GameState.initiate;
-
-		InitiateGame (5, 5, 5);
+	
 	}
 	
 	// Update is called once per frame
 	void Update () {
 	
+		if(gameState == GameState.initiate){
+			InitiateGame (4,4,5);
+			gameState = GameState.showcards;
+		}
+
+		if(gameState == GameState.showcards){
+			instantiateSquares ();
+			gameState = GameState.choosecards;
+		}
+
 	}
 
 	public void InitiateGame(int x_cols, int y_rows, int num_blacks){
-
+		//Starts the game by making a 2D integer matrix and assigns "black squares and white squares"
 
 		numCols = x_cols;
 		numRows = y_rows;
@@ -58,7 +67,7 @@ public class GameController : MonoBehaviour {
 
 //		Puts the numbers into as HashSet. 
 		HashSet<int> blackSquareList = new HashSet<int>();
-		while(blackSquareList.Count < 4){
+		while(blackSquareList.Count < num_blacks){
 			blackSquareList.Add(Random.Range(0, numSquares-1));
 		}
 
@@ -66,32 +75,6 @@ public class GameController : MonoBehaviour {
 			int x = i / numRows;
 			int y = i % numRows;
 			memoryMatrix[x,y] = 1;
-		}
-
-		for (int i = 0; i <numCols; i++){
-			for (int j = 0; j<numRows; j++){
-				if (memoryMatrix[i,j] == 1){
-					SquareObject = (GameObject)Instantiate(BlackSquare, new Vector3(i,j,0), Quaternion.identity);
-					matrixBlockScript = SquareObject.GetComponent<MatrixBlockScript>();
-					matrixBlockScript.x_coord = i;
-					matrixBlockScript.y_coord = j;
-
-					objectMatrix[i,j] = SquareObject;
-				}
-			}
-		}
-
-		for (int i = 0; i <numCols; i++){
-			for (int j = 0; j<numRows; j++){
-				if (memoryMatrix[i,j] == 0){
-					SquareObject = (GameObject)Instantiate(WhiteSquare, new Vector3(i,j,0), Quaternion.identity);
-					objectMatrix[i,j] = SquareObject;
-					matrixBlockScript = SquareObject.GetComponent<MatrixBlockScript>();
-					matrixBlockScript.x_coord = i;
-					matrixBlockScript.y_coord = j;
-//					SquareObject.tag = "WhiteSquare";
-				}
-			}
 		}
 
 	}
@@ -102,7 +85,31 @@ public class GameController : MonoBehaviour {
 
 	public void ClearCells(){
 		foreach(GameObject deleteMe in objectMatrix){
-			Destroy(deleteMe);
+			deleteMe.GetComponent<SpriteRenderer>().color = Color.white;
 		}
 	}	
+
+	public void instantiateSquares(){
+//Instantiates the squares and assigns their x and y cordinate values relative to the memory matrix. 
+		for (int i = 0; i <numCols; i++){
+			for (int j = 0; j<numRows; j++){
+
+				if (memoryMatrix[i,j] == 1){
+					SquareObject = (GameObject)Instantiate(BlackSquare, new Vector3(i,j,0), Quaternion.identity);
+					matrixBlockScript = SquareObject.GetComponent<MatrixBlockScript>();
+					matrixBlockScript.x_coord = i;
+					matrixBlockScript.y_coord = j;
+					objectMatrix[i,j] = SquareObject;
+				}
+				if (memoryMatrix[i,j] == 0){
+						SquareObject = (GameObject)Instantiate(WhiteSquare, new Vector3(i,j,0), Quaternion.identity);
+						objectMatrix[i,j] = SquareObject;
+						matrixBlockScript = SquareObject.GetComponent<MatrixBlockScript>();
+						matrixBlockScript.x_coord = i;
+						matrixBlockScript.y_coord = j;
+					}
+
+			}
+		}
+	}
 }
