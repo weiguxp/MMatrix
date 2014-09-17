@@ -47,9 +47,18 @@ public class GameController : MonoBehaviour {
 	public GameObject HUDLevelChangePanel;
 	public GameObject HUDLevelUP;
 
+	//Top Scores
+	private int topScore1=0;
+	private int topScore2=0;
+	private int topScore3=0;
+	private int topScore4=0;
+	private int topScore5=0;
+	private List<int> topScoreList;
 
 	// Use this for initialization
 	void Start () {
+
+		LoadTopScores ();
 
 		// Establishes that this is the controller, don't destroy it
 		CS = this;
@@ -83,6 +92,7 @@ public class GameController : MonoBehaviour {
 			StartCoroutine(HideCells());}
 
 		if (gameState == GameState.playerlose) {
+			SaveTopScores();
 			StartCoroutine(TallyGame(false));
 			gameState = GameState.idle;}
 
@@ -234,6 +244,7 @@ public class GameController : MonoBehaviour {
 
 	private void AddGameScore(int addScore){
 		gameScore += addScore;
+		topScoreList.Add(gameScore);
 
 	}
 	public void UpdateHUD(){
@@ -257,6 +268,32 @@ public class GameController : MonoBehaviour {
 		numBlacks = gameLevel + 2;
 		numCols = gameLevel / 4 + 3;
 		numRows = (gameLevel - 1) / 2 + 3;
+	}
+
+	private void  LoadTopScores(){
+
+
+		topScoreList = new List<int> ();
+		topScoreList.Add(PlayerPrefs.GetInt ("topScore1"));
+		topScoreList.Add(PlayerPrefs.GetInt ("topScore2"));
+		topScoreList.Add(PlayerPrefs.GetInt ("topScore3"));
+		topScoreList.Add(PlayerPrefs.GetInt ("topScore4"));
+		topScoreList.Add(PlayerPrefs.GetInt ("topScore5"));
+
+
+	}
+
+	private void SaveTopScores(){
+
+		topScoreList.Sort ();
+		topScoreList.Reverse ();
+		topScore1 = topScoreList [0];
+		Debug.Log ("Saving..." + topScore1);
+		PlayerPrefs.SetInt ("topScore1", topScoreList [0]);
+		PlayerPrefs.SetInt ("topScore2", topScoreList [1]);
+		PlayerPrefs.SetInt ("topScore3", topScoreList [2]);
+		PlayerPrefs.SetInt ("topScore4", topScoreList [3]);
+		PlayerPrefs.SetInt ("topScore5", topScoreList [4]);
 	}
 
 //	List<int> sortThis = new List<int>();
