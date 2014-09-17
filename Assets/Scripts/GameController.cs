@@ -5,10 +5,10 @@ using System.Collections.Generic;
 public class GameController : MonoBehaviour {
 	public  enum GameState
 	{
-		initiate,
+		initialize,
 		showcards,
 		choosecards,
-		playerdeath,
+		playerlose,
 		playerwin,
 		idle,
 		gameover,
@@ -23,11 +23,12 @@ public class GameController : MonoBehaviour {
 	private GameObject SquareObject;
 
 	//Settings for the game
-	private int numTrials = 3;
+	private int numTrials = 15;
 	private int numCols;
 	private int numRows;
 	private int numBlacks;
 	private int numCorrect;
+	private int numIncorrect;
 	private int[] blacksquares;
 	private int[,] memoryMatrix;
 	private GameObject[,] objectMatrix;
@@ -44,44 +45,48 @@ public class GameController : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
+
 		// Establishes that this is the controller, don't destroy it
 		CS = this;
 		DontDestroyOnLoad(this);
 
-		gameState = GameState.initiate;
+
+		objectMatrix = new GameObject [1,1];
+		gameState = GameState.initialize;
 
 	}
 	
 	// Update is called once per frame
 	void Update () {
 	
-		if(gameState == GameState.initiate){
+		if(gameState == GameState.initialize){
 			gameState = GameState.showcards;
-			InitiateGame();
-
+			InitializeGame();
 		}
 
 		if(gameState == GameState.showcards){
 			gameState = GameState.idle;
 			StartCoroutine(HideCells());}
 
-		if (gameState == GameState.playerdeath) {
-			StartCoroutine(PlayerLose());
+		if (gameState == GameState.playerlose) {
+			StartCoroutine(TallyGame(false));
 			gameState = GameState.idle;}
 
 		if (gameState == GameState.playerwin) {
-			StartCoroutine(PlayerWin ());
+			StartCoroutine(TallyGame (true));
 			gameState = GameState.idle;
 		}
 
 	}
 
+	public void InitializeGame(){
+		// Initializes the game and starts assigns values to the variables.
 
-	public void InitiateGame(){
+		DeleteCells ();
 		//Starts the game by making a 2D integer matrix and assigns "black squares and white squares"
 		blackObjects = new List<GameObject>();
 		numCorrect = 0;
-		Debug.Log ("CurrentLevel:" + gameLevel+ " CurrentScore:" + gameScore+ " NumTrials:" + numTrials);
+		numIncorrect = 0;
 		LoadLevelDetails ();
 		int numCells = numCols * numRows;
 		memoryMatrix  = new int[numCols,numRows];
@@ -103,31 +108,54 @@ public class GameController : MonoBehaviour {
 		UpdateHUD ();
 	}
 
+
 	public void CellClick (int x, int y){
 //  Registers clicks when game is at choose cards phase.
-	if (gameState == GameState.choosecards) {
-			if (memoryMatrix [x, y] == 1) {
-				memoryMatrix [x, y] = 3;
-				numCorrect++;
-				AddGameScore(10);
-				CheckWin ();
-				objectMatrix [x, y].GetComponent<Animator> ().Play ("BlueFaster");
+		if (gameState == GameState.choosecards) {
+				if (memoryMatrix [x, y] == 1) {
+					memoryMatrix [x, y] = 3;
+					numCorrect++;
+					AddGameScore(10);
+					objectMatrix [x, y].GetComponent<Animator> ().Play ("BlueFaster");
 
+				}
+				if (memoryMatrix [x, y] == 0) {
+					memoryMatrix [x, y] = 2;
+					numIncorrect ++;
+					objectMatrix [x, y].GetComponent<Animator> ().Play ("RedFaster");
+				}
 			}
+		UpdateHUD();
+		CheckWin ();
+	}
 
-			if (memoryMatrix [x, y] == 0) {
-				memoryMatrix [x, y] = 2;
-				objectMatrix [x, y].GetComponent<Animator> ().Play ("RedFaster");
-				gameState = GameState.playerdeath;
+	public void CheckWin (){
+	// Checcks if the number of tries is up
+		if (numCorrect + numIncorrect >= numBlacks) {
+			if(numIncorrect > 0){ gameState = GameState.playerlose;}
+			else{gameState = GameState.playerwin;}
+		}
+	}
+	
+	public IEnumerator TallyGame(bool playerWin){
+	//Tallys up the game and handles level up. 
+		
+		if (numTrials > 1) {
+			numTrials --;
+			if (playerWin == true) {gameLevel++;} 
+			if (playerWin ==false) {
+				RevealCells();
+				if (gameLevel > 1) {if (numBlacks - numCorrect > 1) {gameLevel --;} }
 			}
+			
+			yield return new WaitForSeconds(1);
+			gameState = GameState.initialize;
+		}
+		else{
+			gameState = GameState.idle;
 		}
 	}
 
-	public void LoadLevelDetails(){
-		numBlacks = gameLevel + 2;
-		numCols = gameLevel / 4 + 3;
-		numRows = (gameLevel - 1) / 2 + 3;
-	}
 
 
 	public void ClearButton(){
@@ -135,17 +163,14 @@ public class GameController : MonoBehaviour {
 	}
 	
 	public void DeleteCells(){
-		foreach(GameObject deleteMe in objectMatrix){
-			Destroy (deleteMe);
+		if(objectMatrix.Length > 0){
+			foreach(GameObject deleteMe in objectMatrix){
+				Destroy (deleteMe);
+			}
 		}
 	}
 
-	public void CheckWin (){
 
-		if (numCorrect >= numBlacks) {
-			gameState = GameState.playerwin;
-		}
-	}
 
 	public IEnumerator HideCells(){
 		yield return new WaitForSeconds (2);
@@ -155,38 +180,10 @@ public class GameController : MonoBehaviour {
 		yield return new WaitForSeconds (0.8f);
 		gameState = GameState.choosecards;
 	}	
+	
 
-	public IEnumerator PlayerWin(){
-
-		yield return new WaitForSeconds (1);
-		gameLevel++;
-		DeleteCells ();
-		gameState = GameState.initiate;
-	}
-
-	public IEnumerator PlayerLose(){
-		RevealCells ();
-		yield return new WaitForSeconds (1);
-
-		if(numTrials > 0){
-			numTrials --;
-			if (gameLevel > 1) {
-				if (numBlacks-numCorrect >1){
-				gameLevel --;
-				}
-			}
-			DeleteCells ();
-			gameState = GameState.initiate;
-		}
-		else{
-			gameState = GameState.idle;
-		}
-	}
-
+	
 	public void InstantiateCells(){
-
-
-
 //	Instantiates the squares and assigns their x and y cordinate values relative to the memory matrix. 
 		for (int i = 0; i <numCols; i++){
 			for (int j = 0; j<numRows; j++){
@@ -214,16 +211,15 @@ public class GameController : MonoBehaviour {
 
 	private void AddGameScore(int addScore){
 		gameScore += addScore;
-		UpdateHUD();
+
 	}
 	public void UpdateHUD(){
 		HUDAttempts.GetComponent<UILabel>().text = numTrials.ToString();
 		HUDScore.GetComponent<UILabel>().text = gameScore.ToString();
-		HUDTiles.GetComponent<UILabel>().text = (numBlacks - numCorrect).ToString();
+		HUDTiles.GetComponent<UILabel>().text = (numBlacks - numCorrect - numIncorrect).ToString();
 	}
 
 	public void RevealCells(){
-
 		for (int i = 0; i <numCols; i++) {
 				for (int j = 0; j<numRows; j++) {
 						if (memoryMatrix [i, j] == 1) {
@@ -231,5 +227,11 @@ public class GameController : MonoBehaviour {
 						}
 				}
 		}
+	}
+
+	public void LoadLevelDetails(){
+		numBlacks = gameLevel + 2;
+		numCols = gameLevel / 4 + 3;
+		numRows = (gameLevel - 1) / 2 + 3;
 	}
 }
