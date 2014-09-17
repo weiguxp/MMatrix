@@ -5,6 +5,8 @@ using System.Collections.Generic;
 public class GameController : MonoBehaviour {
 	public  enum GameState
 	{
+		firststart,
+		nextlevel,
 		initialize,
 		showcards,
 		choosecards,
@@ -41,6 +43,9 @@ public class GameController : MonoBehaviour {
 	public GameObject HUDAttempts;
 	public GameObject HUDTiles;
 	public GameObject HUDScore;
+	public GameObject HUDLevel;
+	public GameObject HUDLevelChangePanel;
+	public GameObject HUDLevelUP;
 
 
 	// Use this for initialization
@@ -52,16 +57,25 @@ public class GameController : MonoBehaviour {
 
 
 		objectMatrix = new GameObject [1,1];
-		gameState = GameState.initialize;
+		gameState = GameState.firststart;
 
 	}
 	
 	// Update is called once per frame
 	void Update () {
 	
+		if(gameState == GameState.firststart){
+			gameState = GameState.initialize;
+		}
+
+		if (gameState == GameState.nextlevel) {
+			DeleteCells ();
+			LoadNextLevelPanel();
+		}
+
 		if(gameState == GameState.initialize){
-			gameState = GameState.showcards;
 			InitializeGame();
+			gameState = GameState.showcards;
 		}
 
 		if(gameState == GameState.showcards){
@@ -82,7 +96,7 @@ public class GameController : MonoBehaviour {
 	public void InitializeGame(){
 		// Initializes the game and starts assigns values to the variables.
 
-		DeleteCells ();
+
 		//Starts the game by making a 2D integer matrix and assigns "black squares and white squares"
 		blackObjects = new List<GameObject>();
 		numCorrect = 0;
@@ -142,14 +156,14 @@ public class GameController : MonoBehaviour {
 		
 		if (numTrials > 1) {
 			numTrials --;
-			if (playerWin == true) {gameLevel++;} 
+			if (playerWin == true) {gameLevel++;		NGUITools.SetActive(HUDLevelUP,true);} 
 			if (playerWin ==false) {
 				RevealCells();
 				if (gameLevel > 1) {if (numBlacks - numCorrect > 1) {gameLevel --;} }
 			}
 			
 			yield return new WaitForSeconds(1);
-			gameState = GameState.initialize;
+			gameState = GameState.nextlevel;
 		}
 		else{
 			gameState = GameState.idle;
@@ -181,7 +195,16 @@ public class GameController : MonoBehaviour {
 		gameState = GameState.choosecards;
 	}	
 	
+	public void LoadNextLevelPanel(){
+		HUDLevelChangePanel.GetComponent<TweenAlpha> ().enabled = true;
+		NGUITools.SetActive (HUDLevelChangePanel, true);
+	}
 
+	public void FinishedLevelPanelAnimation(){
+		NGUITools.SetActive (HUDLevelChangePanel, false);
+		NGUITools.SetActive (HUDLevelUP, false);
+		gameState = GameState.initialize;
+	}
 	
 	public void InstantiateCells(){
 //	Instantiates the squares and assigns their x and y cordinate values relative to the memory matrix. 
@@ -217,6 +240,7 @@ public class GameController : MonoBehaviour {
 		HUDAttempts.GetComponent<UILabel>().text = numTrials.ToString();
 		HUDScore.GetComponent<UILabel>().text = gameScore.ToString();
 		HUDTiles.GetComponent<UILabel>().text = (numBlacks - numCorrect - numIncorrect).ToString();
+		HUDLevel.GetComponent<UILabel>().text = (gameLevel).ToString();
 	}
 
 	public void RevealCells(){
@@ -234,4 +258,20 @@ public class GameController : MonoBehaviour {
 		numCols = gameLevel / 4 + 3;
 		numRows = (gameLevel - 1) / 2 + 3;
 	}
+
+//	List<int> sortThis = new List<int>();
+//	
+//	
+//	sortThis.Add (2);
+//	sortThis.Add (3);
+//	sortThis.Add (4);
+//	sortThis.Add (2);
+//	
+//	sortThis.Sort ();
+//	
+//	foreach (int c in sortThis) {
+//		Debug.Log (c.ToString ());
+//	}
+//	Debug.Log (sortThis[1]);
+
 }
