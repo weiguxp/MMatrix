@@ -14,11 +14,9 @@ public class GameController : MonoBehaviour {
 	}
 
 	public static GameController CS;
-	public GameState gameState;
+	private GameState gameState;
 	public GameObject whiteSquare;
-
 	private MatrixBlockScript matrixBlockScript;
-
 	private GameObject squareObject;
 
 
@@ -33,8 +31,9 @@ public class GameController : MonoBehaviour {
 	private int[,] memoryMatrix;
 	private GameObject[,] objectMatrix;
 	private List<GameObject> blackObjects;
-	private int gameLevel=1;
+	private int gameLevel;
 	private int gameScore = 0;
+	private int previousGameLevel;
 
 
 	//HUD items linked here
@@ -45,16 +44,20 @@ public class GameController : MonoBehaviour {
 	public GameObject HUDLevelChangePanel;
 	public GameObject HUDLevelUP;
 	public GameObject HUDGameOverPanel;
+	public GameObject HUDScoreLabel;
+	public GameObject HUDGameOverScore;
 
 	//Top Scores
 	private List<int> topScoreList;
+	private int sumAllScores;
+	private int sumAllGames;
 
 	// Use this for initialization
 	void Start () {
 		// Establishes that this is the controller, don't destroy it
 		CS = this;
 		DontDestroyOnLoad(this);
-		ChangeGameState (GameState.firststart);
+		StartNewGame();
 
 	}
 
@@ -66,20 +69,14 @@ public class GameController : MonoBehaviour {
 	void Update () {
 
 	}
-
-	public void ChangeGameState(GameState newState){
-
+	
+	private void ChangeGameState(GameState newState){
 		Debug.Log (newState.ToString ());
 		gameState = newState;
 
-		if(newState == GameState.firststart){
-			numTrials = 15;
-			LoadTopScores ();
-			InitializeGame();
-		}
 		
 		if (newState == GameState.nextlevel) {
-			DeleteCells ();
+			DeleteAllCells ();
 			LoadNextLevelPanel();
 		}
 
@@ -87,14 +84,27 @@ public class GameController : MonoBehaviour {
 			StartCoroutine(HideCells());}
 
 		if (newState == GameState.gameover) {
-				
+			sumAllGames ++;
+			sumAllScores += gameScore;
+			HandleTopScores();
 		}
 	}
 
-	public void InitializeGame(){
+	private void StartNewGame(){
+		// Used to start a game for the first time.
+		if (previousGameLevel > 5) {
+			gameLevel = previousGameLevel - 4;		
+		} else {
+			gameLevel = 1;
+		}
+		numTrials = 15;
+		LoadTopScores ();
+		InitializeGame();
+	}
+
+
+	private void InitializeGame(){
 		// Initializes the game and starts assigns values to the variables.
-
-
 		//Starts the game by making a 2D integer matrix and assigns "black squares and white squares"
 		blackObjects = new List<GameObject>();
 		numCorrect = 0;
@@ -103,7 +113,6 @@ public class GameController : MonoBehaviour {
 		int numCells = numCols * numRows;
 		memoryMatrix  = new int[numCols,numRows];
 		objectMatrix = new GameObject[numCols,numRows];
-//		Puts the numbers into as HashSet. 
 		HashSet<int> blackSquareList = new HashSet<int>();
 		while(blackSquareList.Count < numBlacks){
 			blackSquareList.Add(Random.Range(0, numCells-1));
@@ -118,7 +127,6 @@ public class GameController : MonoBehaviour {
 		UpdateHUD ();
 		ChangeGameState(GameState.showcards);
 	}
-
 
 	public void CellClick (int x, int y){
 //  Registers clicks when game is at choose cards phase.
@@ -141,12 +149,18 @@ public class GameController : MonoBehaviour {
 		CheckWin ();
 	}
 
-	public void CheckWin (){
+	public void StartGameClick(){
+		NGUITools.SetActive (HUDGameOverPanel, false);
+		DeleteAllCells ();
+		StartNewGame ();
+	}
+
+
+	private void CheckWin (){
 	// Checcks if the number of tries is up
 		if (numCorrect + numIncorrect >= numBlacks) {
 			gameState = GameState.idle;
 			if(numIncorrect > 0){ 
-				SaveTopScores ();
 				StartCoroutine (TallyGame (false));
 			}
 			else{
@@ -155,31 +169,59 @@ public class GameController : MonoBehaviour {
 		}
 	}
 	
-	public IEnumerator TallyGame(bool playerWin){
+	private IEnumerator TallyGame(bool playerWin){
 	//Tallys up the game and handles level up. 
 		
 		if (numTrials > 1) {
 			numTrials --;
+
+			gameScore += gameLevel*10;
+
 			if (playerWin == true) {gameLevel++;		NGUITools.SetActive(HUDLevelUP,true);} 
 			if (playerWin ==false) {
 				RevealCells();
 				if (gameLevel > 1) {if (numBlacks - numCorrect > 1) {gameLevel --;} }
 			}
-			
 			yield return new WaitForSeconds(1);
 			ChangeGameState(GameState.nextlevel);
 		}
 		else{
-			ChangeGameState(GameState.idle);
+			ChangeGameState(GameState.gameover);
 		}
 	}
 
-	
-	public void ClearButton(){
-		StartCoroutine (HideCells ());
+	private void HandleTopScores (){
+		topScoreList.Add (gameScore);
+		topScoreList.Sort ();
+		topScoreList.Reverse ();
+		SaveTopScores ();
+
+		int newHighScore = 10;
+
+		if (gameScore > topScoreList [5]) {
+				newHighScore = topScoreList.IndexOf (gameScore);		
+				Debug.Log ("New High Score " + newHighScore);
+		}
+
+		for (int i = 0; i <5; i++) {
+				GameObject t = NGUITools.AddChild (HUDGameOverPanel, HUDScoreLabel);
+				t.GetComponent<UILabel> ().text = (i + 1).ToString () + ". " + topScoreList [i].ToString ();
+				t.transform.localPosition = new Vector3 (-115, 196 - i * 118, 0);
+
+				if (i == newHighScore) {
+						t.GetComponent<UILabel> ().text = (i + 1).ToString () + ". " + topScoreList [i].ToString () + " (New)";
+				}
+		}
+
+		int averageScore = sumAllScores / sumAllGames;
+		GameObject averageScoreLabel = NGUITools.AddChild (HUDGameOverPanel, HUDScoreLabel);
+		averageScoreLabel.GetComponent<UILabel> ().text = "Average:" + averageScore.ToString ();
+		averageScoreLabel.transform.localPosition = new Vector3 (-115, -382, 0);
+
+		LoadGameOverPanel ();
 	}
 	
-	public void DeleteCells(){
+	private void DeleteAllCells(){
 		if(objectMatrix.Length > 0){
 			foreach(GameObject deleteMe in objectMatrix){
 				Destroy (deleteMe);
@@ -187,7 +229,7 @@ public class GameController : MonoBehaviour {
 		}
 	}
 	
-	public IEnumerator HideCells(){
+	private IEnumerator HideCells(){
 		yield return new WaitForSeconds (2);
 		foreach(GameObject colorMe in blackObjects){
 			colorMe.GetComponent<Animator>().Play("White");
@@ -195,7 +237,15 @@ public class GameController : MonoBehaviour {
 		yield return new WaitForSeconds (0.8f);
 		ChangeGameState(GameState.choosecards);
 	}	
-	
+
+	public void LoadGameOverPanel(){
+		HUDGameOverPanel.GetComponent<TweenAlpha> ().enabled = true;
+		NGUITools.SetActive (HUDGameOverPanel, true);
+
+		HUDGameOverScore.GetComponent<UILabel> ().text = gameScore.ToString();
+	}
+
+
 	public void LoadNextLevelPanel(){
 		HUDLevelChangePanel.GetComponent<TweenAlpha> ().enabled = true;
 		NGUITools.SetActive (HUDLevelChangePanel, true);
@@ -207,7 +257,7 @@ public class GameController : MonoBehaviour {
 		InitializeGame ();
 	}
 	
-	public void InstantiateCells(){
+	private void InstantiateCells(){
 //	Instantiates the squares and assigns their x and y cordinate values relative to the memory matrix. 
 		for (int i = 0; i <numCols; i++){
 			for (int j = 0; j<numRows; j++){
@@ -234,17 +284,16 @@ public class GameController : MonoBehaviour {
 
 	private void AddGameScore(int addScore){
 		gameScore += addScore;
-		topScoreList.Add(gameScore);
 
 	}
-	public void UpdateHUD(){
+	private void UpdateHUD(){
 		HUDAttempts.GetComponent<UILabel>().text = numTrials.ToString();
 		HUDScore.GetComponent<UILabel>().text = gameScore.ToString();
 		HUDTiles.GetComponent<UILabel>().text = (numBlacks - numCorrect - numIncorrect).ToString();
 		HUDLevel.GetComponent<UILabel>().text = (gameLevel).ToString();
 	}
 
-	public void RevealCells(){
+	private void RevealCells(){
 		for (int i = 0; i <numCols; i++) {
 				for (int j = 0; j<numRows; j++) {
 						if (memoryMatrix [i, j] == 1) {
@@ -254,7 +303,7 @@ public class GameController : MonoBehaviour {
 		}
 	}
 
-	public void LoadLevelDetails(){
+	private void LoadLevelDetails(){
 		numBlacks = gameLevel + 2;
 		numCols = gameLevel / 4 + 3;
 		numRows = (gameLevel - 1) / 2 + 3;
@@ -267,17 +316,31 @@ public class GameController : MonoBehaviour {
 		topScoreList.Add(PlayerPrefs.GetInt ("topScore3"));
 		topScoreList.Add(PlayerPrefs.GetInt ("topScore4"));
 		topScoreList.Add(PlayerPrefs.GetInt ("topScore5"));
+
+		sumAllGames = PlayerPrefs.GetInt ("sumAllGames");
+		sumAllScores = PlayerPrefs.GetInt ("sumAllScores");
+		previousGameLevel = PlayerPrefs.GetInt ("previousGameLevel");
+
+
 	}
 
 	private void SaveTopScores(){
 
-		topScoreList.Sort ();
-		topScoreList.Reverse ();
 		PlayerPrefs.SetInt ("topScore1", topScoreList [0]);
 		PlayerPrefs.SetInt ("topScore2", topScoreList [1]);
 		PlayerPrefs.SetInt ("topScore3", topScoreList [2]);
 		PlayerPrefs.SetInt ("topScore4", topScoreList [3]);
 		PlayerPrefs.SetInt ("topScore5", topScoreList [4]);
+
+		PlayerPrefs.SetInt ("previousGameLevel", gameLevel);
+		PlayerPrefs.SetInt ("sumAllGames", sumAllGames);
+		PlayerPrefs.SetInt ("sumAllScores", sumAllScores);
+
+
 	}
+
+//	public void ClearButton(){
+//		StartCoroutine (HideCells ());
+//	}
 
 }
