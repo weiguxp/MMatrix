@@ -32,8 +32,9 @@ public class GameController : MonoBehaviour {
 	private GameObject[,] objectMatrix;
 	private List<GameObject> blackObjects;
 	private int gameLevel;
-	private int gameScore = 0;
+	private int gameScore;
 	private int previousGameLevel;
+	private List<GameObject> deleteScores = new List<GameObject>();
 
 
 	//HUD items linked here
@@ -57,7 +58,9 @@ public class GameController : MonoBehaviour {
 		// Establishes that this is the controller, don't destroy it
 		CS = this;
 		DontDestroyOnLoad(this);
+		LoadTopScores ();
 		StartNewGame();
+
 
 	}
 
@@ -73,7 +76,6 @@ public class GameController : MonoBehaviour {
 	private void ChangeGameState(GameState newState){
 		Debug.Log (newState.ToString ());
 		gameState = newState;
-
 		
 		if (newState == GameState.nextlevel) {
 			DeleteAllCells ();
@@ -91,14 +93,15 @@ public class GameController : MonoBehaviour {
 	}
 
 	private void StartNewGame(){
+		gameScore = 0;
 		// Used to start a game for the first time.
 		if (previousGameLevel > 5) {
 			gameLevel = previousGameLevel - 4;		
 		} else {
 			gameLevel = 1;
 		}
-		numTrials = 15;
-		LoadTopScores ();
+		numTrials = 1;
+
 		InitializeGame();
 	}
 
@@ -174,7 +177,7 @@ public class GameController : MonoBehaviour {
 		
 		if (numTrials > 1) {
 			numTrials --;
-
+			UpdateHUD();
 			gameScore += gameLevel*10;
 
 			if (playerWin == true) {gameLevel++;		NGUITools.SetActive(HUDLevelUP,true);} 
@@ -191,6 +194,13 @@ public class GameController : MonoBehaviour {
 	}
 
 	private void HandleTopScores (){
+
+		foreach (GameObject i in deleteScores) {
+			Destroy(i);		
+		}
+
+		previousGameLevel = gameLevel;
+
 		topScoreList.Add (gameScore);
 		topScoreList.Sort ();
 		topScoreList.Reverse ();
@@ -211,13 +221,14 @@ public class GameController : MonoBehaviour {
 				if (i == newHighScore) {
 						t.GetComponent<UILabel> ().text = (i + 1).ToString () + ". " + topScoreList [i].ToString () + " (New)";
 				}
+				deleteScores.Add(t);
 		}
 
 		int averageScore = sumAllScores / sumAllGames;
 		GameObject averageScoreLabel = NGUITools.AddChild (HUDGameOverPanel, HUDScoreLabel);
 		averageScoreLabel.GetComponent<UILabel> ().text = "Average:" + averageScore.ToString ();
 		averageScoreLabel.transform.localPosition = new Vector3 (-115, -382, 0);
-
+		deleteScores.Add(averageScoreLabel);
 		LoadGameOverPanel ();
 	}
 	
@@ -239,6 +250,8 @@ public class GameController : MonoBehaviour {
 	}	
 
 	public void LoadGameOverPanel(){
+
+
 		HUDGameOverPanel.GetComponent<TweenAlpha> ().enabled = true;
 		NGUITools.SetActive (HUDGameOverPanel, true);
 
