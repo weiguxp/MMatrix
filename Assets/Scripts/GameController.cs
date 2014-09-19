@@ -7,25 +7,23 @@ public class GameController : MonoBehaviour {
 	{
 		firststart,
 		nextlevel,
-		initialize,
 		showcards,
 		choosecards,
-		playerlose,
-		playerwin,
 		idle,
 		gameover,
 	}
 
 	public static GameController CS;
 	public GameState gameState;
+	public GameObject whiteSquare;
+
 	private MatrixBlockScript matrixBlockScript;
 
+	private GameObject squareObject;
 
-	public GameObject WhiteSquare;
-	private GameObject SquareObject;
 
 	//Settings for the game
-	private int numTrials = 15;
+	private int numTrials;
 	private int numCols;
 	private int numRows;
 	private int numBlacks;
@@ -46,61 +44,51 @@ public class GameController : MonoBehaviour {
 	public GameObject HUDLevel;
 	public GameObject HUDLevelChangePanel;
 	public GameObject HUDLevelUP;
+	public GameObject HUDGameOverPanel;
 
 	//Top Scores
-	private int topScore1=0;
-	private int topScore2=0;
-	private int topScore3=0;
-	private int topScore4=0;
-	private int topScore5=0;
 	private List<int> topScoreList;
 
 	// Use this for initialization
 	void Start () {
-
-		LoadTopScores ();
-
 		// Establishes that this is the controller, don't destroy it
 		CS = this;
 		DontDestroyOnLoad(this);
+		ChangeGameState (GameState.firststart);
 
+	}
 
-		objectMatrix = new GameObject [1,1];
-		gameState = GameState.firststart;
-
+	void OnGUI(){
+//		GUI.Box(new Rect(10,700,200,50),numTrials.ToString()+"correct " + numCorrect +"incorrect " + numIncorrect);
 	}
 	
 	// Update is called once per frame
 	void Update () {
-	
-		if(gameState == GameState.firststart){
-			gameState = GameState.initialize;
-		}
 
-		if (gameState == GameState.nextlevel) {
+	}
+
+	public void ChangeGameState(GameState newState){
+
+		Debug.Log (newState.ToString ());
+		gameState = newState;
+
+		if(newState == GameState.firststart){
+			numTrials = 15;
+			LoadTopScores ();
+			InitializeGame();
+		}
+		
+		if (newState == GameState.nextlevel) {
 			DeleteCells ();
 			LoadNextLevelPanel();
 		}
 
-		if(gameState == GameState.initialize){
-			InitializeGame();
-			gameState = GameState.showcards;
-		}
-
-		if(gameState == GameState.showcards){
-			gameState = GameState.idle;
+		if(newState == GameState.showcards){
 			StartCoroutine(HideCells());}
 
-		if (gameState == GameState.playerlose) {
-			SaveTopScores();
-			StartCoroutine(TallyGame(false));
-			gameState = GameState.idle;}
-
-		if (gameState == GameState.playerwin) {
-			StartCoroutine(TallyGame (true));
-			gameState = GameState.idle;
+		if (newState == GameState.gameover) {
+				
 		}
-
 	}
 
 	public void InitializeGame(){
@@ -115,7 +103,6 @@ public class GameController : MonoBehaviour {
 		int numCells = numCols * numRows;
 		memoryMatrix  = new int[numCols,numRows];
 		objectMatrix = new GameObject[numCols,numRows];
-
 //		Puts the numbers into as HashSet. 
 		HashSet<int> blackSquareList = new HashSet<int>();
 		while(blackSquareList.Count < numBlacks){
@@ -127,15 +114,16 @@ public class GameController : MonoBehaviour {
 			int y = i % numRows;
 			memoryMatrix[x,y] = 1;
 		}
-
 		InstantiateCells ();
 		UpdateHUD ();
+		ChangeGameState(GameState.showcards);
 	}
 
 
 	public void CellClick (int x, int y){
 //  Registers clicks when game is at choose cards phase.
 		if (gameState == GameState.choosecards) {
+
 				if (memoryMatrix [x, y] == 1) {
 					memoryMatrix [x, y] = 3;
 					numCorrect++;
@@ -156,8 +144,14 @@ public class GameController : MonoBehaviour {
 	public void CheckWin (){
 	// Checcks if the number of tries is up
 		if (numCorrect + numIncorrect >= numBlacks) {
-			if(numIncorrect > 0){ gameState = GameState.playerlose;}
-			else{gameState = GameState.playerwin;}
+			gameState = GameState.idle;
+			if(numIncorrect > 0){ 
+				SaveTopScores ();
+				StartCoroutine (TallyGame (false));
+			}
+			else{
+				StartCoroutine(TallyGame (true));
+			}
 		}
 	}
 	
@@ -173,15 +167,14 @@ public class GameController : MonoBehaviour {
 			}
 			
 			yield return new WaitForSeconds(1);
-			gameState = GameState.nextlevel;
+			ChangeGameState(GameState.nextlevel);
 		}
 		else{
-			gameState = GameState.idle;
+			ChangeGameState(GameState.idle);
 		}
 	}
 
-
-
+	
 	public void ClearButton(){
 		StartCoroutine (HideCells ());
 	}
@@ -193,16 +186,14 @@ public class GameController : MonoBehaviour {
 			}
 		}
 	}
-
-
-
+	
 	public IEnumerator HideCells(){
 		yield return new WaitForSeconds (2);
 		foreach(GameObject colorMe in blackObjects){
 			colorMe.GetComponent<Animator>().Play("White");
 		}
 		yield return new WaitForSeconds (0.8f);
-		gameState = GameState.choosecards;
+		ChangeGameState(GameState.choosecards);
 	}	
 	
 	public void LoadNextLevelPanel(){
@@ -213,7 +204,7 @@ public class GameController : MonoBehaviour {
 	public void FinishedLevelPanelAnimation(){
 		NGUITools.SetActive (HUDLevelChangePanel, false);
 		NGUITools.SetActive (HUDLevelUP, false);
-		gameState = GameState.initialize;
+		InitializeGame ();
 	}
 	
 	public void InstantiateCells(){
@@ -221,23 +212,22 @@ public class GameController : MonoBehaviour {
 		for (int i = 0; i <numCols; i++){
 			for (int j = 0; j<numRows; j++){
 
-				SquareObject = (GameObject)Instantiate(WhiteSquare, new Vector3((float)i-(float)numCols/2,(float)j-(float)numRows/2,0), Quaternion.identity);
-				matrixBlockScript = SquareObject.GetComponent<MatrixBlockScript>();
+				squareObject = (GameObject)Instantiate(whiteSquare, new Vector3((float)i-(float)numCols/2,(float)j-(float)numRows/2,0), Quaternion.identity);
+				matrixBlockScript = squareObject.GetComponent<MatrixBlockScript>();
 				matrixBlockScript.x_coord = i;
 				matrixBlockScript.y_coord = j;
 
-				objectMatrix[i,j] = SquareObject;
+				objectMatrix[i,j] = squareObject;
 
 				if (memoryMatrix[i,j] == 1){
 					matrixBlockScript.isBlackSquare = true;
-					blackObjects.Add(SquareObject);
-					SquareObject.GetComponent<Animator>().Play("Blue");
+					blackObjects.Add(squareObject);
+					squareObject.GetComponent<Animator>().Play("Blue");
 				}
 
 				if (memoryMatrix[i,j] == 0){
 					matrixBlockScript.isBlackSquare = false;
 				}
-
 			}
 		}
 	}
@@ -271,44 +261,23 @@ public class GameController : MonoBehaviour {
 	}
 
 	private void  LoadTopScores(){
-
-
 		topScoreList = new List<int> ();
 		topScoreList.Add(PlayerPrefs.GetInt ("topScore1"));
 		topScoreList.Add(PlayerPrefs.GetInt ("topScore2"));
 		topScoreList.Add(PlayerPrefs.GetInt ("topScore3"));
 		topScoreList.Add(PlayerPrefs.GetInt ("topScore4"));
 		topScoreList.Add(PlayerPrefs.GetInt ("topScore5"));
-
-
 	}
 
 	private void SaveTopScores(){
 
 		topScoreList.Sort ();
 		topScoreList.Reverse ();
-		topScore1 = topScoreList [0];
-		Debug.Log ("Saving..." + topScore1);
 		PlayerPrefs.SetInt ("topScore1", topScoreList [0]);
 		PlayerPrefs.SetInt ("topScore2", topScoreList [1]);
 		PlayerPrefs.SetInt ("topScore3", topScoreList [2]);
 		PlayerPrefs.SetInt ("topScore4", topScoreList [3]);
 		PlayerPrefs.SetInt ("topScore5", topScoreList [4]);
 	}
-
-//	List<int> sortThis = new List<int>();
-//	
-//	
-//	sortThis.Add (2);
-//	sortThis.Add (3);
-//	sortThis.Add (4);
-//	sortThis.Add (2);
-//	
-//	sortThis.Sort ();
-//	
-//	foreach (int c in sortThis) {
-//		Debug.Log (c.ToString ());
-//	}
-//	Debug.Log (sortThis[1]);
 
 }
