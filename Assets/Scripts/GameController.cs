@@ -34,6 +34,8 @@ public class GameController : MonoBehaviour {
 	private int gameLevel;
 	private int gameScore;
 	private int previousGameLevel;
+	private UILabel avgScoreLabel;
+	private List<UILabel> labelList = new List<UILabel> ();
 	private List<GameObject> deleteScores = new List<GameObject>();
 
 
@@ -49,7 +51,7 @@ public class GameController : MonoBehaviour {
 	public GameObject HUDGameOverScore;
 
 	//Top Scores
-	private List<int> topScoreList;
+	private List<int> topScoreList = new List<int> ();
 	private int sumAllScores;
 	private int sumAllGames;
 
@@ -60,8 +62,6 @@ public class GameController : MonoBehaviour {
 		DontDestroyOnLoad(this);
 		LoadTopScores ();
 		StartNewGame();
-
-
 	}
 
 	void OnGUI(){
@@ -70,7 +70,6 @@ public class GameController : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-
 	}
 	
 	private void ChangeGameState(GameState newState){
@@ -100,11 +99,10 @@ public class GameController : MonoBehaviour {
 		} else {
 			gameLevel = 1;
 		}
-		numTrials = 1;
+		numTrials = 15;
 
 		InitializeGame();
 	}
-
 
 	private void InitializeGame(){
 		// Initializes the game and starts assigns values to the variables.
@@ -133,21 +131,21 @@ public class GameController : MonoBehaviour {
 
 	public void CellClick (int x, int y){
 //  Registers clicks when game is at choose cards phase.
-		if (gameState == GameState.choosecards) {
+	if (gameState == GameState.choosecards) {
 
-				if (memoryMatrix [x, y] == 1) {
-					memoryMatrix [x, y] = 3;
-					numCorrect++;
-					AddGameScore(10);
-					objectMatrix [x, y].GetComponent<Animator> ().Play ("BlueFaster");
+			if (memoryMatrix [x, y] == 1) {
+				memoryMatrix [x, y] = 3;
+				numCorrect++;
+				AddGameScore(10);
+				objectMatrix [x, y].GetComponent<Animator> ().Play ("BlueFaster");
 
-				}
-				if (memoryMatrix [x, y] == 0) {
-					memoryMatrix [x, y] = 2;
-					numIncorrect ++;
-					objectMatrix [x, y].GetComponent<Animator> ().Play ("RedFaster");
-				}
 			}
+			if (memoryMatrix [x, y] == 0) {
+				memoryMatrix [x, y] = 2;
+				numIncorrect ++;
+				objectMatrix [x, y].GetComponent<Animator> ().Play ("RedFaster");
+			}
+		}
 		UpdateHUD();
 		CheckWin ();
 	}
@@ -195,12 +193,7 @@ public class GameController : MonoBehaviour {
 
 	private void HandleTopScores (){
 
-		foreach (GameObject i in deleteScores) {
-			Destroy(i);		
-		}
-
 		previousGameLevel = gameLevel;
-
 		topScoreList.Add (gameScore);
 		topScoreList.Sort ();
 		topScoreList.Reverse ();
@@ -213,22 +206,30 @@ public class GameController : MonoBehaviour {
 				Debug.Log ("New High Score " + newHighScore);
 		}
 
-		for (int i = 0; i <5; i++) {
-				GameObject t = NGUITools.AddChild (HUDGameOverPanel, HUDScoreLabel);
-				t.GetComponent<UILabel> ().text = (i + 1).ToString () + ". " + topScoreList [i].ToString ();
-				t.transform.localPosition = new Vector3 (-115, 196 - i * 118, 0);
 
-				if (i == newHighScore) {
-						t.GetComponent<UILabel> ().text = (i + 1).ToString () + ". " + topScoreList [i].ToString () + " (New)";
+		// Instantiate Score Items
+
+		if (labelList.Count < 1) {
+				for (int i = 0; i <5; i++) {
+						GameObject t = NGUITools.AddChild (HUDGameOverPanel, HUDScoreLabel);
+						t.transform.localPosition = new Vector3 (-115, 196 - i * 118, 0);
+						labelList.Add (t.GetComponent<UILabel> ()); 
 				}
-				deleteScores.Add(t);
+			GameObject averageScoreLabel = NGUITools.AddChild (HUDGameOverPanel, HUDScoreLabel);
+			avgScoreLabel = averageScoreLabel.GetComponent<UILabel>();
+			averageScoreLabel.transform.localPosition = new Vector3 (-115, -382, 0);
 		}
 
+		for (int i = 0; i <5; i++) {
+				labelList[i].text = (i + 1).ToString () + ". " + topScoreList [i].ToString ();
+				if (i == newHighScore) {
+					labelList[i].text = (i + 1).ToString () + ". " + topScoreList [i].ToString () + " (New)";
+				}
+		}
+
+
 		int averageScore = sumAllScores / sumAllGames;
-		GameObject averageScoreLabel = NGUITools.AddChild (HUDGameOverPanel, HUDScoreLabel);
-		averageScoreLabel.GetComponent<UILabel> ().text = "Average:" + averageScore.ToString ();
-		averageScoreLabel.transform.localPosition = new Vector3 (-115, -382, 0);
-		deleteScores.Add(averageScoreLabel);
+		avgScoreLabel.text = "Average:" + averageScore.ToString ();
 		LoadGameOverPanel ();
 	}
 	
@@ -274,12 +275,10 @@ public class GameController : MonoBehaviour {
 //	Instantiates the squares and assigns their x and y cordinate values relative to the memory matrix. 
 		for (int i = 0; i <numCols; i++){
 			for (int j = 0; j<numRows; j++){
-
 				squareObject = (GameObject)Instantiate(whiteSquare, new Vector3((float)i-(float)numCols/2,(float)j-(float)numRows/2,0), Quaternion.identity);
 				matrixBlockScript = squareObject.GetComponent<MatrixBlockScript>();
 				matrixBlockScript.x_coord = i;
 				matrixBlockScript.y_coord = j;
-
 				objectMatrix[i,j] = squareObject;
 
 				if (memoryMatrix[i,j] == 1){
@@ -323,33 +322,24 @@ public class GameController : MonoBehaviour {
 	}
 
 	private void  LoadTopScores(){
-		topScoreList = new List<int> ();
-		topScoreList.Add(PlayerPrefs.GetInt ("topScore1"));
-		topScoreList.Add(PlayerPrefs.GetInt ("topScore2"));
-		topScoreList.Add(PlayerPrefs.GetInt ("topScore3"));
-		topScoreList.Add(PlayerPrefs.GetInt ("topScore4"));
-		topScoreList.Add(PlayerPrefs.GetInt ("topScore5"));
+
+		for (int i = 0; i <5; i++) {
+			topScoreList.Add(PlayerPrefs.GetInt ("topScore" + i));
+		}
 
 		sumAllGames = PlayerPrefs.GetInt ("sumAllGames");
 		sumAllScores = PlayerPrefs.GetInt ("sumAllScores");
 		previousGameLevel = PlayerPrefs.GetInt ("previousGameLevel");
-
-
 	}
 
 	private void SaveTopScores(){
-
-		PlayerPrefs.SetInt ("topScore1", topScoreList [0]);
-		PlayerPrefs.SetInt ("topScore2", topScoreList [1]);
-		PlayerPrefs.SetInt ("topScore3", topScoreList [2]);
-		PlayerPrefs.SetInt ("topScore4", topScoreList [3]);
-		PlayerPrefs.SetInt ("topScore5", topScoreList [4]);
+		for (int i = 0; i <5; i++) {
+			PlayerPrefs.SetInt ("topScore"+i, topScoreList [i]);
+		}
 
 		PlayerPrefs.SetInt ("previousGameLevel", gameLevel);
 		PlayerPrefs.SetInt ("sumAllGames", sumAllGames);
 		PlayerPrefs.SetInt ("sumAllScores", sumAllScores);
-
-
 	}
 
 //	public void ClearButton(){
