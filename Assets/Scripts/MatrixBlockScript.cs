@@ -2,11 +2,6 @@
 using System.Collections;
 
 public class MatrixBlockScript : MonoBehaviour {
-	public int y_coord;
-	public int x_coord;
-	public bool isBlackSquare;
-
-
 	// Use this for initialization
 	void Start () {
 //		Debug.Log (y_coord + "," + x_coord);
@@ -18,7 +13,8 @@ public class MatrixBlockScript : MonoBehaviour {
 	}
 
 	void OnMouseDown(){
-			GameController.CS.CellClick(x_coord, y_coord);
+			GameController.CS.CellClick(this.gameObject);
+
 	}
 	
 }

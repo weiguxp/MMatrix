@@ -20,24 +20,22 @@ public class GameController : MonoBehaviour {
 	private GameObject squareObject;
 
 
-	//Settings for the game
+	//Variables in the game
 	private int numTrials;
 	private int numCols;
 	private int numRows;
 	private int numBlacks;
 	private int numCorrect;
 	private int numIncorrect;
-	private int[] blacksquares;
-	private int[,] memoryMatrix;
-	private GameObject[,] objectMatrix;
-	private List<GameObject> blackObjects;
 	private int gameLevel;
 	private int gameScore;
+
+	//Objects in the Game
+	private GameTile[,] objectMatrix;
 	private int previousGameLevel;
 	private UILabel avgScoreLabel;
 	private List<UILabel> labelList = new List<UILabel> ();
 	private List<GameObject> deleteScores = new List<GameObject>();
-
 
 	//HUD items linked here
 	public GameObject HUDAttempts;
@@ -57,11 +55,13 @@ public class GameController : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
+		PlayerPrefs.DeleteAll ();
 		// Establishes that this is the controller, don't destroy it
 		CS = this;
 		DontDestroyOnLoad(this);
 		LoadTopScores ();
 		StartNewGame();
+
 	}
 
 	void OnGUI(){
@@ -70,21 +70,23 @@ public class GameController : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
+
 	}
 	
 	private void ChangeGameState(GameState newState){
 		Debug.Log (newState.ToString ());
 		gameState = newState;
 		
-		if (newState == GameState.nextlevel) {
+		if (gameState == GameState.nextlevel) {
 			DeleteAllCells ();
 			LoadNextLevelPanel();
+
 		}
 
-		if(newState == GameState.showcards){
+		if(gameState == GameState.showcards){
 			StartCoroutine(HideCells());}
 
-		if (newState == GameState.gameover) {
+		if (gameState == GameState.gameover) {
 			sumAllGames ++;
 			sumAllScores += gameScore;
 			HandleTopScores();
@@ -92,70 +94,114 @@ public class GameController : MonoBehaviour {
 	}
 
 	private void StartNewGame(){
-		gameScore = 0;
+
 		// Used to start a game for the first time.
 		if (previousGameLevel > 5) {
 			gameLevel = previousGameLevel - 4;		
 		} else {
 			gameLevel = 1;
 		}
-		numTrials = 15;
+		numTrials = 1;
 
 		InitializeGame();
+
+		if (objectMatrix [0, 0].cellState == GameTile.CellState.BlackHidden) {
+		};
 	}
 
 	private void InitializeGame(){
 		// Initializes the game and starts assigns values to the variables.
 		//Starts the game by making a 2D integer matrix and assigns "black squares and white squares"
-		blackObjects = new List<GameObject>();
-		numCorrect = 0;
-		numIncorrect = 0;
-		LoadLevelDetails ();
-		int numCells = numCols * numRows;
-		memoryMatrix  = new int[numCols,numRows];
-		objectMatrix = new GameObject[numCols,numRows];
-		HashSet<int> blackSquareList = new HashSet<int>();
-		while(blackSquareList.Count < numBlacks){
-			blackSquareList.Add(Random.Range(0, numCells-1));
-		}
+		numCorrect = 0;gameScore = 0; numIncorrect = 0;
 
-		foreach (int i in blackSquareList){
-			int x = i / numRows;
-			int y = i % numRows;
-			memoryMatrix[x,y] = 1;
-		}
+		LoadLevelDetails ();
+
+		//objectMatrix = new GameObject[numCols,numRows];
+
+		objectMatrix = new GameTile[numCols, numRows];
+
+	
+
+
 		InstantiateCells ();
+
+
+		SetBlackCells ();
+
 		UpdateHUD ();
 		ChangeGameState(GameState.showcards);
 	}
 
-	public void CellClick (int x, int y){
+	private void SetBlackCells()
+	{
+		int numCells = numCols * numRows;
+		HashSet<int> blackSquareList = new HashSet<int>();
+		while(blackSquareList.Count < numBlacks){
+			blackSquareList.Add(Random.Range(0, numCells-1));
+		}
+		foreach (int i in blackSquareList){
+			int x = i / numRows;
+			int y = i % numRows;
+			objectMatrix[x,y].cellState = GameTile.CellState.BlackHidden;
+			objectMatrix[x,y].Go.GetComponent<Animator>().Play("Blue");
+		}
+	}
+
+	private Vector2 GetCoords(GameObject go)
+	{
+		for (int i = 0; i <numCols; i++) 
+		{
+			for (int j = 0; j<numRows; j++) 
+			{
+				if(objectMatrix[i,j].Go == go)
+				{
+					return new Vector2(i,j);
+				}
+			}
+		}
+		return Vector2.zero;
+	}
+
+
+	public void CellClick (GameObject go){
 //  Registers clicks when game is at choose cards phase.
 	if (gameState == GameState.choosecards) {
 
-			if (memoryMatrix [x, y] == 1) {
-				memoryMatrix [x, y] = 3;
+			Vector2 targetCoords = GetCoords(go);
+			GameTile targetTile = objectMatrix[(int)targetCoords.x,(int)targetCoords.y];
+
+			if(targetTile.cellState == GameTile.CellState.BlackHidden)
+			{
+				targetTile.cellState = GameTile.CellState.BlackShown;
 				numCorrect++;
 				AddGameScore(10);
-				objectMatrix [x, y].GetComponent<Animator> ().Play ("BlueFaster");
+				targetTile.Go.GetComponent<Animator> ().Play ("BlueFaster");
 
 			}
-			if (memoryMatrix [x, y] == 0) {
-				memoryMatrix [x, y] = 2;
+			if (targetTile.cellState == GameTile.CellState.WhiteHidden) 
+			{
+				targetTile.cellState = GameTile.CellState.WhiteShown;
 				numIncorrect ++;
-				objectMatrix [x, y].GetComponent<Animator> ().Play ("RedFaster");
+				targetTile.Go.GetComponent<Animator> ().Play ("RedFaster");
 			}
 		}
 		UpdateHUD();
 		CheckWin ();
 	}
 
-	public void StartGameClick(){
-		NGUITools.SetActive (HUDGameOverPanel, false);
-		DeleteAllCells ();
-		StartNewGame ();
-	}
 
+	private GameObject[] FindBlackTileObjects()
+	{
+		List<GameObject> goList = new List<GameObject> ();
+
+		foreach (GameTile tile in objectMatrix) 
+		{
+			if(tile.cellState == GameTile.CellState.BlackHidden)
+				goList.Add(tile.Go);
+		}
+
+		return goList.ToArray ();
+	}
 
 	private void CheckWin (){
 	// Checcks if the number of tries is up
@@ -169,7 +215,13 @@ public class GameController : MonoBehaviour {
 			}
 		}
 	}
-	
+
+	public void StartGameClick(){
+		NGUITools.SetActive (HUDGameOverPanel, false);
+		DeleteAllCells ();
+		StartNewGame ();
+	}
+
 	private IEnumerator TallyGame(bool playerWin){
 	//Tallys up the game and handles level up. 
 		
@@ -179,7 +231,7 @@ public class GameController : MonoBehaviour {
 			gameScore += gameLevel*10;
 
 			if (playerWin == true) {gameLevel++;		NGUITools.SetActive(HUDLevelUP,true);} 
-			if (playerWin ==false) {
+			if (playerWin == false) {
 				RevealCells();
 				if (gameLevel > 1) {if (numBlacks - numCorrect > 1) {gameLevel --;} }
 			}
@@ -187,6 +239,8 @@ public class GameController : MonoBehaviour {
 			ChangeGameState(GameState.nextlevel);
 		}
 		else{
+			RevealCells();
+			yield return new WaitForSeconds(1);
 			ChangeGameState(GameState.gameover);
 		}
 	}
@@ -205,8 +259,7 @@ public class GameController : MonoBehaviour {
 				newHighScore = topScoreList.IndexOf (gameScore);		
 				Debug.Log ("New High Score " + newHighScore);
 		}
-
-
+		
 		// Instantiate Score Items
 
 		if (labelList.Count < 1) {
@@ -235,15 +288,15 @@ public class GameController : MonoBehaviour {
 	
 	private void DeleteAllCells(){
 		if(objectMatrix.Length > 0){
-			foreach(GameObject deleteMe in objectMatrix){
-				Destroy (deleteMe);
+			foreach(GameTile deleteMe in objectMatrix){
+				Destroy (deleteMe.Go);
 			}
 		}
 	}
 	
 	private IEnumerator HideCells(){
 		yield return new WaitForSeconds (2);
-		foreach(GameObject colorMe in blackObjects){
+		foreach(GameObject colorMe in FindBlackTileObjects()){
 			colorMe.GetComponent<Animator>().Play("White");
 		}
 		yield return new WaitForSeconds (0.8f);
@@ -251,7 +304,6 @@ public class GameController : MonoBehaviour {
 	}	
 
 	public void LoadGameOverPanel(){
-
 
 		HUDGameOverPanel.GetComponent<TweenAlpha> ().enabled = true;
 		NGUITools.SetActive (HUDGameOverPanel, true);
@@ -276,20 +328,12 @@ public class GameController : MonoBehaviour {
 		for (int i = 0; i <numCols; i++){
 			for (int j = 0; j<numRows; j++){
 				squareObject = (GameObject)Instantiate(whiteSquare, new Vector3((float)i-(float)numCols/2,(float)j-(float)numRows/2,0), Quaternion.identity);
-				matrixBlockScript = squareObject.GetComponent<MatrixBlockScript>();
-				matrixBlockScript.x_coord = i;
-				matrixBlockScript.y_coord = j;
-				objectMatrix[i,j] = squareObject;
+				//objectMatrix[i,j] = squareObject;
 
-				if (memoryMatrix[i,j] == 1){
-					matrixBlockScript.isBlackSquare = true;
-					blackObjects.Add(squareObject);
-					squareObject.GetComponent<Animator>().Play("Blue");
-				}
+				objectMatrix[i,j] = new GameTile(squareObject, i , j);
 
-				if (memoryMatrix[i,j] == 0){
-					matrixBlockScript.isBlackSquare = false;
-				}
+
+
 			}
 		}
 	}
@@ -308,8 +352,8 @@ public class GameController : MonoBehaviour {
 	private void RevealCells(){
 		for (int i = 0; i <numCols; i++) {
 				for (int j = 0; j<numRows; j++) {
-						if (memoryMatrix [i, j] == 1) {
-						objectMatrix[i,j].GetComponent<Animator>().Play("BlueFaster");
+						if (objectMatrix[i,j].cellState == GameTile.CellState.BlackHidden) {
+						objectMatrix[i,j].Go.GetComponent<Animator>().Play("BlueFaster");
 						}
 				}
 		}
@@ -333,6 +377,7 @@ public class GameController : MonoBehaviour {
 	}
 
 	private void SaveTopScores(){
+
 		for (int i = 0; i <5; i++) {
 			PlayerPrefs.SetInt ("topScore"+i, topScoreList [i]);
 		}
