@@ -8,27 +8,19 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 using System;
-using System.Collections;
-using UnityEngine;
-
-public class GameTile
+public class Game
 {
-	public enum CellState{
-		WhiteHidden,
-		BlackHidden,
-		WhiteShown,
-		BlackShown,
-	}
+	public int numTrials;
+	public int numCols;
+	public int numRows;
+	public int numBlacks;
+	public int numCorrect;
+	public int numIncorrect;
+	public int gameLevel;
+	public int gameScore;
 
-	
-	public CellState cellState;
-	public GameObject Go;
-
-
-	public GameTile (GameObject tile)
+	public Game ()
 	{
-		Go = tile;
-		cellState = CellState.WhiteHidden;
+
 	}
 }
-

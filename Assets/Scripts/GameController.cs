@@ -15,29 +15,22 @@ public class GameController : MonoBehaviour {
 
 	public static GameController CS;
 	private GameState gameState;
-	public GameObject whiteSquare;
-	private MatrixBlockScript matrixBlockScript;
-	private GameObject squareObject;
+	public GameObject squarePrefab;
+	//private 
 
 
 	//Variables in the game
-	private int numTrials;
-	private int numCols;
-	private int numRows;
-	private int numBlacks;
-	private int numCorrect;
-	private int numIncorrect;
-	private int gameLevel;
+	private Game currentGame;
+	private Game previousGame;
+
 	private int gameScore;
 
 	//Objects in the Game
 	private GameTile[,] objectMatrix;
-	private int previousGameLevel;
-	private UILabel avgScoreLabel;
-	private List<UILabel> labelList = new List<UILabel> ();
-	private List<GameObject> deleteScores = new List<GameObject>();
 
+	
 	//HUD items linked here
+	// Make a proper UI handler
 	public GameObject HUDAttempts;
 	public GameObject HUDTiles;
 	public GameObject HUDScore;
@@ -47,6 +40,8 @@ public class GameController : MonoBehaviour {
 	public GameObject HUDGameOverPanel;
 	public GameObject HUDScoreLabel;
 	public GameObject HUDGameOverScore;
+	private List<UILabel> labelList = new List<UILabel> ();
+	private UILabel avgScoreLabel;
 
 	//Top Scores
 	private List<int> topScoreList = new List<int> ();
@@ -55,7 +50,6 @@ public class GameController : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-		PlayerPrefs.DeleteAll ();
 		// Establishes that this is the controller, don't destroy it
 		CS = this;
 		DontDestroyOnLoad(this);
@@ -74,6 +68,7 @@ public class GameController : MonoBehaviour {
 	}
 	
 	private void ChangeGameState(GameState newState){
+		//Fix so its about current states
 		Debug.Log (newState.ToString ());
 		gameState = newState;
 		
@@ -95,36 +90,31 @@ public class GameController : MonoBehaviour {
 
 	private void StartNewGame(){
 
+		previousGame = currentGame;
+		currentGame = new Game ();
+
 		// Used to start a game for the first time.
-		if (previousGameLevel > 5) {
-			gameLevel = previousGameLevel - 4;		
+		if (previousGame.gameLevel > 5) {
+			currentGame.gameLevel = previousGame.gameLevel - 4;		
 		} else {
-			gameLevel = 1;
+			currentGame.gameLevel = 1;
 		}
-		numTrials = 1;
+		currentGame.numTrials = 15;
 
 		InitializeGame();
 
-		if (objectMatrix [0, 0].cellState == GameTile.CellState.BlackHidden) {
-		};
 	}
 
 	private void InitializeGame(){
 		// Initializes the game and starts assigns values to the variables.
 		//Starts the game by making a 2D integer matrix and assigns "black squares and white squares"
-		numCorrect = 0;gameScore = 0; numIncorrect = 0;
+		currentGame.numCorrect = 0;gameScore = 0; currentGame.numIncorrect = 0;
 
-		LoadLevelDetails ();
-
-		//objectMatrix = new GameObject[numCols,numRows];
-
-		objectMatrix = new GameTile[numCols, numRows];
-
+		CalculateLevelSettings ();
 	
-
+		objectMatrix = new GameTile[currentGame.numCols, currentGame.numRows];
 
 		InstantiateCells ();
-
 
 		SetBlackCells ();
 
@@ -134,14 +124,14 @@ public class GameController : MonoBehaviour {
 
 	private void SetBlackCells()
 	{
-		int numCells = numCols * numRows;
+		int numCells = currentGame.numCols * currentGame.numRows;
 		HashSet<int> blackSquareList = new HashSet<int>();
-		while(blackSquareList.Count < numBlacks){
+		while(blackSquareList.Count < currentGame.numBlacks){
 			blackSquareList.Add(Random.Range(0, numCells-1));
 		}
 		foreach (int i in blackSquareList){
-			int x = i / numRows;
-			int y = i % numRows;
+			int x = i / currentGame.numRows;
+			int y = i % currentGame.numRows;
 			objectMatrix[x,y].cellState = GameTile.CellState.BlackHidden;
 			objectMatrix[x,y].Go.GetComponent<Animator>().Play("Blue");
 		}
@@ -149,9 +139,9 @@ public class GameController : MonoBehaviour {
 
 	private Vector2 GetCoords(GameObject go)
 	{
-		for (int i = 0; i <numCols; i++) 
+		for (int i = 0; i <currentGame.numCols; i++) 
 		{
-			for (int j = 0; j<numRows; j++) 
+			for (int j = 0; j<currentGame.numRows; j++) 
 			{
 				if(objectMatrix[i,j].Go == go)
 				{
@@ -173,7 +163,7 @@ public class GameController : MonoBehaviour {
 			if(targetTile.cellState == GameTile.CellState.BlackHidden)
 			{
 				targetTile.cellState = GameTile.CellState.BlackShown;
-				numCorrect++;
+				currentGame.numCorrect++;
 				AddGameScore(10);
 				targetTile.Go.GetComponent<Animator> ().Play ("BlueFaster");
 
@@ -181,7 +171,7 @@ public class GameController : MonoBehaviour {
 			if (targetTile.cellState == GameTile.CellState.WhiteHidden) 
 			{
 				targetTile.cellState = GameTile.CellState.WhiteShown;
-				numIncorrect ++;
+				currentGame.numIncorrect ++;
 				targetTile.Go.GetComponent<Animator> ().Play ("RedFaster");
 			}
 		}
@@ -205,9 +195,9 @@ public class GameController : MonoBehaviour {
 
 	private void CheckWin (){
 	// Checcks if the number of tries is up
-		if (numCorrect + numIncorrect >= numBlacks) {
+		if (currentGame.numCorrect + currentGame.numIncorrect >= currentGame.numBlacks) {
 			gameState = GameState.idle;
-			if(numIncorrect > 0){ 
+			if(currentGame.numIncorrect > 0){ 
 				StartCoroutine (TallyGame (false));
 			}
 			else{
@@ -224,16 +214,17 @@ public class GameController : MonoBehaviour {
 
 	private IEnumerator TallyGame(bool playerWin){
 	//Tallys up the game and handles level up. 
+	//Fix this shit
 		
-		if (numTrials > 1) {
-			numTrials --;
+		if (currentGame.numTrials > 1) {
+			currentGame.numTrials --;
 			UpdateHUD();
-			gameScore += gameLevel*10;
+			gameScore += currentGame.gameLevel*10;
 
-			if (playerWin == true) {gameLevel++;		NGUITools.SetActive(HUDLevelUP,true);} 
+			if (playerWin == true) {currentGame.gameLevel++;		NGUITools.SetActive(HUDLevelUP,true);} 
 			if (playerWin == false) {
 				RevealCells();
-				if (gameLevel > 1) {if (numBlacks - numCorrect > 1) {gameLevel --;} }
+				if (currentGame.gameLevel > 1) {if (currentGame.numBlacks - currentGame.numCorrect > 1) {currentGame.gameLevel --;} }
 			}
 			yield return new WaitForSeconds(1);
 			ChangeGameState(GameState.nextlevel);
@@ -247,7 +238,7 @@ public class GameController : MonoBehaviour {
 
 	private void HandleTopScores (){
 
-		previousGameLevel = gameLevel;
+		previousGame.gameLevel = currentGame.gameLevel;
 		topScoreList.Add (gameScore);
 		topScoreList.Sort ();
 		topScoreList.Reverse ();
@@ -325,15 +316,12 @@ public class GameController : MonoBehaviour {
 	
 	private void InstantiateCells(){
 //	Instantiates the squares and assigns their x and y cordinate values relative to the memory matrix. 
-		for (int i = 0; i <numCols; i++){
-			for (int j = 0; j<numRows; j++){
-				squareObject = (GameObject)Instantiate(whiteSquare, new Vector3((float)i-(float)numCols/2,(float)j-(float)numRows/2,0), Quaternion.identity);
+		for (int i = 0; i <currentGame.numCols; i++){
+			for (int j = 0; j<currentGame.numRows; j++){
+				//GameObject squareObject = ;
 				//objectMatrix[i,j] = squareObject;
 
-				objectMatrix[i,j] = new GameTile(squareObject, i , j);
-
-
-
+				objectMatrix[i,j] = new GameTile((GameObject)Instantiate(squarePrefab, new Vector3((float)i-(float)currentGame.numCols/2,(float)j-(float)currentGame.numRows/2,0), Quaternion.identity));
 			}
 		}
 	}
@@ -343,15 +331,15 @@ public class GameController : MonoBehaviour {
 
 	}
 	private void UpdateHUD(){
-		HUDAttempts.GetComponent<UILabel>().text = numTrials.ToString();
+		HUDAttempts.GetComponent<UILabel>().text = currentGame.numTrials.ToString();
 		HUDScore.GetComponent<UILabel>().text = gameScore.ToString();
-		HUDTiles.GetComponent<UILabel>().text = (numBlacks - numCorrect - numIncorrect).ToString();
-		HUDLevel.GetComponent<UILabel>().text = (gameLevel).ToString();
+		HUDTiles.GetComponent<UILabel>().text = (currentGame.numBlacks - currentGame.numCorrect - currentGame.numIncorrect).ToString();
+		HUDLevel.GetComponent<UILabel>().text = (currentGame.gameLevel).ToString();
 	}
 
 	private void RevealCells(){
-		for (int i = 0; i <numCols; i++) {
-				for (int j = 0; j<numRows; j++) {
+		for (int i = 0; i <currentGame.numCols; i++) {
+				for (int j = 0; j<currentGame.numRows; j++) {
 						if (objectMatrix[i,j].cellState == GameTile.CellState.BlackHidden) {
 						objectMatrix[i,j].Go.GetComponent<Animator>().Play("BlueFaster");
 						}
@@ -359,10 +347,10 @@ public class GameController : MonoBehaviour {
 		}
 	}
 
-	private void LoadLevelDetails(){
-		numBlacks = gameLevel + 2;
-		numCols = gameLevel / 4 + 3;
-		numRows = (gameLevel - 1) / 2 + 3;
+	private void CalculateLevelSettings(){
+		currentGame.numBlacks = currentGame.gameLevel + 2;
+		currentGame.numCols = (currentGame.gameLevel - 1) / 4 + 3;
+		currentGame.numRows = currentGame.gameLevel / 2 + 3;
 	}
 
 	private void  LoadTopScores(){
@@ -373,7 +361,7 @@ public class GameController : MonoBehaviour {
 
 		sumAllGames = PlayerPrefs.GetInt ("sumAllGames");
 		sumAllScores = PlayerPrefs.GetInt ("sumAllScores");
-		previousGameLevel = PlayerPrefs.GetInt ("previousGameLevel");
+		previousGame.gameLevel = PlayerPrefs.GetInt ("previousGameLevel");
 	}
 
 	private void SaveTopScores(){
@@ -382,13 +370,10 @@ public class GameController : MonoBehaviour {
 			PlayerPrefs.SetInt ("topScore"+i, topScoreList [i]);
 		}
 
-		PlayerPrefs.SetInt ("previousGameLevel", gameLevel);
+		PlayerPrefs.SetInt ("previousGameLevel", currentGame.gameLevel);
 		PlayerPrefs.SetInt ("sumAllGames", sumAllGames);
 		PlayerPrefs.SetInt ("sumAllScores", sumAllScores);
 	}
-
-//	public void ClearButton(){
-//		StartCoroutine (HideCells ());
-//	}
+	
 
 }
