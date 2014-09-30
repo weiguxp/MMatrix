@@ -20,15 +20,20 @@ public class GameTile
 		BlackShown,
 	}
 
-	
+
+	public int locX {get; private set;}
+	public int locY {get; private set;}
+
 	public CellState cellState;
 	public GameObject Go;
 
 
-	public GameTile (GameObject tile)
+	public GameTile (GameObject tile, int x, int y)
 	{
 		Go = tile;
 		cellState = CellState.WhiteHidden;
+		locX = x;
+		locY = y;
 	}
 }
 
